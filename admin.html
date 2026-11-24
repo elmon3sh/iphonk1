@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة | iPHONK Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- مكتبات Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #f2f4f8;
+            --surface-card: rgba(255, 255, 255, 0.94);
+            --bg-subtle: #f7f9fc;
+            --border-light: rgba(15, 23, 42, 0.08);
+            --border-strong: rgba(15, 23, 42, 0.15);
+            --primary-accent: #0071e3;
+            --primary-deep: #0055b3;
+            --primary-soft: rgba(0, 113, 227, 0.1);
+            --primary-gradient: linear-gradient(135deg, #0a84ff 0%, #0060df 100%);
+            --text-main: #14171f;
+            --text-secondary: #5a6270;
+            --text-muted: #8892a4;
+            --danger: #ef4444;
+            --danger-soft: rgba(239, 68, 68, 0.1);
+            --radius-xl: 24px;
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --shadow-subtle: 0 12px 34px rgba(15, 23, 42, 0.06);
+            --shadow-glow: 0 10px 24px rgba(0, 113, 227, 0.26);
+            --font-ar: 'Cairo', sans-serif;
+            --font-en: 'Inter', sans-serif;
+            --glass-bg: rgba(255, 255, 255, 0.88);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-ar); }
+
+        body {
+            background:
+                radial-gradient(900px 420px at 50% -60px, rgba(0, 113, 227, 0.13), transparent 70%),
+                radial-gradient(700px 380px at 15% 10%, rgba(14, 165, 233, 0.08), transparent 65%),
+                var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            padding-bottom: 64px;
+        }
+
+        .num-en {
+            font-family: var(--font-en);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* شاشة تسجيل الدخول */
+        #loginOverlay {
+            position: fixed; inset: 0;
+            background: rgba(242, 244, 248, 0.72);
+            backdrop-filter: blur(26px) saturate(160%);
+            -webkit-backdrop-filter: blur(26px) saturate(160%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px;
+        }
+
+        .login-card {
+            background: var(--glass-bg);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            padding: 36px 28px;
+            border-radius: var(--radius-xl);
+            box-shadow: 0 26px 60px rgba(15, 23, 42, 0.12);
+            width: 100%; max-width: 390px; text-align: center;
+        }
+
+        .login-icon {
+            width: 58px; height: 58px; margin: 0 auto 12px;
+            border-radius: 18px;
+            background: var(--primary-soft);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.7rem;
+        }
+
+        .login-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+        .login-subtitle { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 22px; }
+        .login-form { display: flex; flex-direction: column; gap: 11px; }
+
+        .form-input {
+            width: 100%; padding: 11px 14px; border-radius: var(--radius-md);
+            border: 1px solid var(--border-strong); background: #ffffff; font-size: 0.92rem;
+            color: var(--text-main); outline: none; transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.13);
+        }
+
+        .btn-login {
+            background: var(--primary-gradient); color: #fff; border: none;
+            padding: 12px; border-radius: var(--radius-md); font-size: 0.95rem;
+            font-weight: 800; cursor: pointer; margin-top: 4px;
+            box-shadow: var(--shadow-glow); transition: transform 0.15s ease;
+        }
+
+        .btn-login:hover { transform: translateY(-1px); }
+        .error-message { color: var(--danger); font-size: 0.8rem; font-weight: 700; display: none; }
+
+        #dashboardContent { display: none; }
+
+        /* الشريط العلوي */
+        .top-navbar {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid var(--border-light);
+            position: sticky; top: 0; z-index: 100; padding: 12px 0;
+        }
+
+        .nav-content {
+            max-width: 1140px; margin: 0 auto; padding: 0 20px;
+            display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+        }
+
+        .brand-logo { display: flex; align-items: center; gap: 10px; }
+        .brand-logo img { height: 38px; object-fit: contain; }
+        .badge-admin {
+            background: var(--primary-soft); color: var(--primary-accent);
+            padding: 4px 11px; border-radius: 999px; font-size: 0.72rem;
+            font-weight: 800; font-family: var(--font-en);
+        }
+
+        .nav-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-secondary {
+            background: #ffffff; border: 1px solid var(--border-light); color: var(--text-main);
+            padding: 7px 13px; border-radius: var(--radius-md); font-size: 0.8rem; font-weight: 700;
+            cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03); transition: all 0.16s ease;
+        }
+        .btn-secondary:hover {
+            border-color: var(--primary-accent); color: var(--primary-accent);
+            transform: translateY(-1px);
+        }
+
+        /* الحاوية الرئيسية */
+        .main-container {
+            max-width: 1140px; margin: 24px auto 0; padding: 0 20px;
+            display: flex; flex-direction: column; gap: 18px;
+        }
+
+        /* شريط البحث الشامل */
+        .global-search-wrapper { width: 100%; position: relative; }
+        .global-search-input {
+            width: 100%; padding: 14px 46px 14px 116px; border-radius: 999px;
+            border: 1px solid var(--border-light); background: var(--surface-card);
+            font-size: 0.93rem; font-weight: 600; box-shadow: var(--shadow-subtle);
+            outline: none; transition: all 0.2s ease;
+        }
+        .global-search-input:focus {
+            border-color: var(--primary-accent); background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.13), var(--shadow-subtle);
+        }
+        .global-search-icon {
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+            font-size: 1rem; pointer-events: none;
+        }
+        .search-controls-left {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .search-scope-badge {
+            font-size: 0.72rem; background: var(--primary-soft); color: var(--primary-accent);
+            padding: 3px 10px; border-radius: 999px; font-weight: 800; display: none;
+        }
+        .btn-clear-search {
+            width: 26px; height: 26px; border-radius: 50%; border: none;
+            background: rgba(15, 23, 42, 0.08); color: var(--text-secondary);
+            font-size: 0.76rem; font-weight: 700; cursor: pointer;
+            display: none; align-items: center; justify-content: center;
+        }
+
+        /* التبويبات الثلاثة */
+        .category-tabs {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+            background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(16px);
+            padding: 7px; border-radius: var(--radius-lg); border: 1px solid var(--border-light);
+        }
+        @media (max-width: 680px) { .category-tabs { grid-template-columns: 1fr; } }
+
+        .tab-btn {
+            background: transparent; border: none; border-radius: var(--radius-md);
+            padding: 12px 16px; font-size: 0.94rem; font-weight: 700; color: var(--text-secondary);
+            cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .tab-btn:hover { background: rgba(255, 255, 255, 0.8); color: var(--text-main); }
+        .tab-btn.active {
+            background: var(--primary-gradient); color: #ffffff;
+            box-shadow: var(--shadow-glow);
+        }
+        .tab-count {
+            background: rgba(15, 23, 42, 0.06); color: var(--text-main);
+            padding: 2px 10px; border-radius: 999px; font-size: 0.78rem;
+            font-family: var(--font-en); font-weight: 800;
+        }
+        .tab-btn.active .tab-count { background: rgba(255, 255, 255, 0.24); color: #ffffff; }
+
+        /* بطاقة الجدول */
+        .dashboard-section {
+            background: var(--surface-card); border: 1px solid var(--border-light);
+            border-radius: var(--radius-xl); padding: 24px; box-shadow: var(--shadow-subtle);
+        }
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 18px; gap: 12px; flex-wrap: wrap;
+            padding-bottom: 14px; border-bottom: 1px solid var(--border-light);
+        }
+        .header-right-group { display: flex; align-items: center; gap: 14px; }
+
+        .btn-add-product {
+            width: 44px; height: 44px; border-radius: 14px; background: var(--primary-gradient);
+            color: #ffffff; border: none; font-size: 1.55rem; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow-glow); transition: transform 0.16s ease;
+        }
+        .btn-add-product:hover { transform: translateY(-1px) scale(1.05); }
+
+        .section-title { font-size: 1.15rem; font-weight: 800; }
+        .section-subtitle { font-size: 0.82rem; color: var(--text-muted); }
+
+        .table-wrapper {
+            width: 100%; overflow-x: auto;
+            border-radius: var(--radius-lg); border: 1px solid var(--border-light);
+            background: #ffffff;
+        }
+        .modern-table { width: 100%; border-collapse: collapse; text-align: right; white-space: nowrap; }
+        .modern-table th {
+            background: var(--bg-subtle); color: var(--text-secondary);
+            font-size: 0.8rem; font-weight: 800; padding: 13px 15px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .modern-table td {
+            padding: 13px 15px; font-size: 0.9rem;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.045); font-weight: 600;
+            vertical-align: middle;
+        }
+        .modern-table tbody tr:last-child td { border-bottom: none; }
+        .modern-table tbody tr:hover { background: rgba(0, 113, 227, 0.03); }
+
+        .date-badge {
+            font-size: 0.8rem; color: var(--text-secondary);
+            background: var(--bg-subtle); padding: 4px 10px;
+            border-radius: 8px; border: 1px solid var(--border-light);
+        }
+
+        .spec-tag {
+            display: inline-block; padding: 3px 9px; border-radius: 8px;
+            background: var(--bg-subtle); border: 1px solid var(--border-light);
+            color: var(--text-secondary); font-size: 0.8rem; font-weight: 700;
+        }
+
+        .price-pill {
+            display: inline-block;
+            background: linear-gradient(180deg, #f3f8ff 0%, #e7f1ff 100%);
+            border: 1px solid #c6defe; color: var(--primary-deep);
+            padding: 4px 12px; border-radius: 9px; font-size: 0.88rem; font-weight: 800;
+        }
+
+        .cat-pill {
+            display: inline-block; padding: 2px 9px; border-radius: 999px;
+            font-size: 0.72rem; background: var(--primary-soft);
+            color: var(--primary-accent); margin-right: 6px; font-weight: 800;
+        }
+
+        .action-btns { display: flex; gap: 6px; }
+        .btn-action {
+            background: #ffffff; border: 1px solid var(--border-light); cursor: pointer;
+            font-size: 0.78rem; padding: 5px 11px; border-radius: 9px;
+            font-weight: 700; transition: all 0.15s ease;
+        }
+        .btn-edit { color: var(--primary-accent); }
+        .btn-edit:hover { background: var(--primary-soft); border-color: var(--primary-accent); }
+        .btn-delete { color: var(--danger); }
+        .btn-delete:hover { background: var(--danger-soft); border-color: var(--danger); }
+
+        /* النوافذ المنبثقة */
+        .glass-modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.38);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1100; padding: 20px;
+        }
+        .glass-modal-card {
+            background: rgba(255, 255, 255, 0.97);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            padding: 26px; border-radius: var(--radius-xl);
+            box-shadow: 0 28px 64px rgba(15, 23, 42, 0.18);
+            width: 100%; max-width: 440px;
+            animation: modalAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalAppear {
+            from { opacity: 0; transform: translateY(10px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px; border-bottom: 1px solid var(--border-light); padding-bottom: 12px;
+        }
+        .modal-title { font-size: 1.12rem; font-weight: 800; }
+        .modal-close {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: rgba(15, 23, 42, 0.06); border: none;
+            font-size: 0.92rem; cursor: pointer; color: var(--text-secondary);
+        }
+        .modal-close:hover { background: rgba(15, 23, 42, 0.12); color: var(--text-main); }
+        .modal-body { display: flex; flex-direction: column; gap: 13px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; text-align: right; }
+        .input-group label { font-size: 0.82rem; font-weight: 800; color: var(--text-main); }
+        .modal-footer { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+        .btn-cancel {
+            background: rgba(15, 23, 42, 0.06); color: var(--text-main); border: none;
+            padding: 9px 18px; border-radius: var(--radius-md); font-weight: 700; cursor: pointer;
+        }
+        .btn-save {
+            background: var(--primary-gradient); color: #fff; border: none;
+            padding: 9px 22px; border-radius: var(--radius-md); font-weight: 800;
+            cursor: pointer; box-shadow: var(--shadow-glow);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+            color: #fff; border: none; padding: 9px 20px;
+            border-radius: var(--radius-md); font-weight: 800; cursor: pointer;
+        }
+
+        .toast-notification {
+            position: fixed; bottom: 24px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #14171f; color: #fff; padding: 11px 22px;
+            border-radius: 999px; font-size: 0.86rem; font-weight: 700;
+            opacity: 0; transition: all 0.3s ease; z-index: 1200;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+        }
+        .toast-notification.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-card">
+            <div class="login-icon">🔐</div>
+            <h2 class="login-title">iPHONK Admin</h2>
+            <p class="login-subtitle">أدخل اسم المستخدم وكلمة المرور لإدارة المنتجات والأسعار</p>
+            
+            <form class="login-form" onsubmit="handleLogin(event)">
+                <input type="text" id="usernameInput" class="form-input" style="text-align: center;" placeholder="اسم المستخدم" autocomplete="username" required autofocus>
+                <input type="password" id="passwordInput" class="form-input" style="text-align: center;" placeholder="كلمة المرور" autocomplete="current-password" required>
+                <div id="errorMsg" class="error-message">كلمة المرور غير صحيحة!</div>
+                <button type="submit" class="btn-login">تسجيل الدخول</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboardContent">
+        <header class="top-navbar">
+            <div class="nav-content">
+                <div class="brand-logo">
+                    <img src="logo.png" alt="iPHONK" onerror="this.style.display='none'">
+                    <span class="badge-admin">Admin Studio</span>
+                </div>
+                <div class="nav-actions">
+                    <a href="index.html" target="_blank" class="btn-secondary">الصفحة الرئيسية 🌐</a>
+                    <button type="button" class="btn-secondary" onclick="openUsersModal()">إدارة المستخدمين 👥</button>
+                    <button type="button" class="btn-secondary" onclick="openChangePassModal()">تغيير كلمة المرور 🔑</button>
+                    <button type="button" class="btn-secondary" onclick="logoutAdmin()">خروج 🚪</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <div class="global-search-wrapper">
+                <span class="global-search-icon">🔍</span>
+                <input type="text" id="globalSearchInput" class="global-search-input" placeholder="بحث في كل الأقسام (جديد، مستعمل، اكسسوارات)..." oninput="handleSearchInput()">
+                <div class="search-controls-left">
+                    <span id="searchScopeBadge" class="search-scope-badge">بحث شامل</span>
+                    <button type="button" id="clearSearchBtn" class="btn-clear-search" onclick="clearSearch()" title="مسح البحث">✕</button>
+                </div>
+            </div>
+
+            <div class="category-tabs">
+                <button type="button" class="tab-btn active" data-cat="new" onclick="switchCategory('new', this)">
+                    <span>📱 الأجهزة الجديدة</span>
+                    <span class="tab-count" id="count-new">0</span>
+                </button>
+                <button type="button" class="tab-btn" data-cat="used" onclick="switchCategory('used', this)">
+                    <span>🔄 الأجهزة المستعملة</span>
+                    <span class="tab-count" id="count-used">0</span>
+                </button>
+                <button type="button" class="tab-btn" data-cat="accessories" onclick="switchCategory('accessories', this)">
+                    <span>🎧 الاكسسوارات</span>
+                    <span class="tab-count" id="count-accessories">0</span>
+                </button>
+            </div>
+
+            <section class="dashboard-section">
+                <div class="section-header">
+                    <div class="header-right-group">
+                        <button type="button" class="btn-add-product" onclick="openProductModal()" title="إضافة منتج">+</button>
+                        <div>
+                            <h2 class="section-title" id="currentCategoryTitle">الأجهزة الجديدة</h2>
+                            <p class="section-subtitle" id="currentCategorySubtitle">اضغط على (+) لإضافة منتج جديد أو تعديل المنتجات الحالية</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="modern-table">
+                        <thead id="productsTableHead">
+                            <tr>
+                                <th>اسم المنتج</th>
+                                <th>المساحة</th>
+                                <th>اللون</th>
+                                <th>السعر</th>
+                                <th>المدخل</th>
+                                <th>تاريخ آخر تحديث</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 28px;">جاري تحميل البيانات...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="productModal" class="glass-modal-overlay" onclick="if(event.target === this) closeModal('productModal')">
+        <div class="glass-modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title" id="productModalTitle">➕ إضافة منتج</h3>
+                <button type="button" class="modal-close" onclick="closeModal('productModal')">✕</button>
+            </div>
+            <div class="modal-body" onkeydown="if(event.key === 'Enter' && event.target.tagName !== 'SELECT') saveProduct()">
+                <input type="hidden" id="productKey">
+
+                <div class="input-group">
+                    <label>القسم</label>
+                    <select id="prodCategory" class="form-input" onchange="toggleUsedFields()">
+                        <option value="new">الأجهزة الجديدة</option>
+                        <option value="used">الأجهزة المستعملة</option>
+                        <option value="accessories">الاكسسوارات</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>اسم المنتج</label>
+                    <input type="text" id="prodName" class="form-input" placeholder="مثال: iPhone 18 Pro 256GB">
+                </div>
+
+                <div class="input-group">
+                    <label>السعر (EGP)</label>
+                    <input type="number" id="prodPrice" class="form-input" placeholder="مثال: 99990">
+                </div>
+
+                <div id="deviceDetailsFields" style="display:none; flex-direction:column; gap:13px;">
+                    <div class="input-group" id="batteryField" style="display:none;">
+                        <label>نسبة البطارية (%)</label>
+                        <input type="number" id="prodBattery" class="form-input" placeholder="مثال: 92" min="0" max="100">
+                    </div>
+                    <div class="input-group">
+                        <label>المساحة</label>
+                        <select id="prodStorage" class="form-input">
+                            <option value="">اختر المساحة</option>
+                            <option>64GB</option><option>128GB</option><option>256GB</option><option>512GB</option><option>1TB</option><option>2TB</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>اللون</label>
+                        <input type="text" id="prodColor" class="form-input" placeholder="مثال: أسود / Black">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('productModal')">إلغاء</button>
+                <button type="button" class="btn-save" onclick="saveProduct()">حفظ المنتج</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="glass-modal-overlay" onclick="if(event.target === this) closeModal('deleteModal')">
+        <div class="glass-modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">🗑️ تأكيد حذف المنتج</h3>
+                <button type="button" class="modal-close" onclick="closeModal('deleteModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.86rem; color: var(--text-secondary);">هل أنت متأكد من حذف هذا المنتج نهائياً من قاعدة البيانات؟</p>
+                <input type="hidden" id="deleteKey">
+                <div id="deleteErrorMsg" class="error-message"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('deleteModal')">إلغاء</button>
+                <button type="button" class="btn-danger" onclick="confirmDeleteProduct()">تأكيد الحذف</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="changePassModal" class="glass-modal-overlay" onclick="if(event.target === this) closeModal('changePassModal')">
+        <div class="glass-modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">🔑 تغيير كلمة المرور</h3>
+                <button type="button" class="modal-close" onclick="closeModal('changePassModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>كلمة المرور الحالية</label>
+                    <input type="password" id="currPassInput" class="form-input" placeholder="••••••••">
+                </div>
+                <div class="input-group">
+                    <label>كلمة المرور الجديدة</label>
+                    <input type="password" id="newPassInput" class="form-input" placeholder="••••••••">
+                </div>
+                <div id="changePassErrorMsg" class="error-message">كلمة المرور الحالية غير صحيحة!</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('changePassModal')">إلغاء</button>
+                <button type="button" class="btn-save" onclick="confirmChangePassword()">حفظ الباسورد الجديد</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="usersModal" class="glass-modal-overlay" onclick="if(event.target === this) closeModal('usersModal')">
+        <div class="glass-modal-card" style="max-width:560px;">
+            <div class="modal-header">
+                <h3 class="modal-title">👥 إدارة المستخدمين</h3>
+                <button type="button" class="modal-close" onclick="closeModal('usersModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <button type="button" class="btn-save" style="align-self:flex-start;" onclick="openUserEditor()">+ إضافة مستخدم جديد</button>
+                <div class="table-wrapper">
+                    <table class="modern-table">
+                        <thead><tr><th>اسم المستخدم</th><th>تاريخ الإضافة</th><th>إجراءات</th></tr></thead>
+                        <tbody id="usersTableBody"><tr><td colspan="3">جاري التحميل...</td></tr></tbody>
+                    </table>
+                </div>
+                <div id="userEditor" style="display:none; flex-direction:column; gap:10px; border-top:1px solid var(--border-light); padding-top:14px;">
+                    <h4 id="userEditorTitle">إضافة مستخدم</h4>
+                    <input type="hidden" id="userEditKey">
+                    <div class="input-group"><label>اسم المستخدم</label><input id="newUsername" class="form-input" type="text" autocomplete="off" placeholder="مثال: ahmed"></div>
+                    <div class="input-group"><label>كلمة المرور <span id="passwordHint">(مطلوبة)</span></label><input id="newUserPassword" class="form-input" type="password" autocomplete="new-password" placeholder="كلمة مرور قوية"></div>
+                    <div class="modal-footer" style="margin-top:4px;"><button type="button" class="btn-cancel" onclick="cancelUserEditor()">إلغاء</button><button type="button" class="btn-save" onclick="saveUser()">حفظ المستخدم</button></div>
+                    <div id="userErrorMsg" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="toast-notification">تم الحفظ بنجاح ✓</div>
+
+    <script>
+        const DEFAULT_PASSWORD = "123";
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3a3CPO8pOzfbzAnxDoZcLt_jhVwMdxuI",
+            authDomain: "iphonk-df6b0.firebaseapp.com",
+            databaseURL: "https://iphonk-df6b0-default-rtdb.firebaseio.com",
+            projectId: "iphonk-df6b0",
+            storageBucket: "iphonk-df6b0.firebasestorage.app",
+            messagingSenderId: "878080840386",
+            appId: "1:878080840386:web:937f098bff921eb2a6a15b",
+            measurementId: "G-RDGY7ZVJMW"
+        };
+
+        let database;
+        let allProducts = {};
+        let currentCategory = 'new';
+        let currentUser = null;
+        let allUsers = {};
+        let editingUserKey = null;
+
+        const categoryLabels = {
+            new: 'الأجهزة الجديدة',
+            used: 'الأجهزة المستعملة',
+            accessories: 'الاكسسوارات'
+        };
+
+        async function hashPassword(password) {
+            const bytes = new TextEncoder().encode(String(password));
+            const digest = await crypto.subtle.digest('SHA-256', bytes);
+            return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function initDatabase() {
+            if (!database) {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+            }
+            return database;
+        }
+
+        async function ensureInitialAdmin() {
+            const ref = database.ref('adminUsers');
+            const snapshot = await ref.once('value');
+            if (!snapshot.exists()) {
+                const legacyPassword = localStorage.getItem('admin_password') || DEFAULT_PASSWORD;
+                await ref.push({ username: 'admin', passwordHash: await hashPassword(legacyPassword), createdAt: Date.now() });
+            }
+        }
+
+        function escapeHTML(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatLastUpdated(timestamp) {
+            if (!timestamp) return '---';
+            const date = new Date(Number(timestamp));
+            if (isNaN(date.getTime())) return '---';
+            const datePart = date.toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const timePart = date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            return `${datePart} - ${timePart}`;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        async function checkSession() {
+            try {
+                initDatabase();
+                await ensureInitialAdmin();
+                const savedUsername = sessionStorage.getItem('admin_username');
+                if (sessionStorage.getItem('admin_authenticated') === 'true' && savedUsername) {
+                    const snap = await database.ref('adminUsers').once('value');
+                    const users = snap.val() || {};
+                    const found = Object.values(users).find(u => (u.username || '').toLowerCase() === savedUsername.toLowerCase());
+                    if (found) {
+                        currentUser = found;
+                        unlockDashboard();
+                    } else {
+                        sessionStorage.clear();
+                    }
+                }
+            } catch (err) {
+                alert('تعذر الاتصال بقاعدة البيانات: ' + err.message);
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('usernameInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const errorMsg = document.getElementById('errorMsg');
+            try {
+                initDatabase();
+                await ensureInitialAdmin();
+                const snap = await database.ref('adminUsers').once('value');
+                const users = snap.val() || {};
+                const user = Object.values(users).find(u => (u.username || '').toLowerCase() === username.toLowerCase());
+                if (user && user.passwordHash === await hashPassword(password)) {
+                    currentUser = user;
+                    sessionStorage.setItem('admin_authenticated', 'true');
+                    sessionStorage.setItem('admin_username', user.username);
+                    errorMsg.style.display = 'none';
+                    unlockDashboard();
+                } else {
+                    errorMsg.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة!';
+                    errorMsg.style.display = 'block';
+                    document.getElementById('passwordInput').value = '';
+                    document.getElementById('passwordInput').focus();
+                }
+            } catch (err) {
+                errorMsg.textContent = 'تعذر تسجيل الدخول: ' + err.message;
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function unlockDashboard() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+            if (!database) initDatabase();
+            listenToProducts();
+        }
+
+        function logoutAdmin() {
+            sessionStorage.removeItem('admin_authenticated');
+            sessionStorage.removeItem('admin_username');
+            location.reload();
+        }
+
+        function listenToProducts() {
+            database.ref('products').on('value', (snapshot) => {
+                allProducts = snapshot.val() || {};
+                updateCategoryCounts();
+                renderProductsTable();
+            });
+        }
+
+        function updateCategoryCounts() {
+            const counts = { new: 0, used: 0, accessories: 0 };
+            Object.values(allProducts).forEach(item => {
+                if (item && counts[item.category] !== undefined) {
+                    counts[item.category]++;
+                }
+            });
+            document.getElementById('count-new').textContent = counts.new;
+            document.getElementById('count-used').textContent = counts.used;
+            document.getElementById('count-accessories').textContent = counts.accessories;
+        }
+
+        function switchCategory(cat, btnElement) {
+            currentCategory = cat;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            clearSearch();
+        }
+
+        function handleSearchInput() {
+            const val = document.getElementById('globalSearchInput').value;
+            document.getElementById('clearSearchBtn').style.display = val.length > 0 ? 'flex' : 'none';
+            renderProductsTable();
+        }
+
+        function clearSearch() {
+            document.getElementById('globalSearchInput').value = '';
+            document.getElementById('clearSearchBtn').style.display = 'none';
+            renderProductsTable();
+        }
+
+        function renderProductsTable() {
+            const tbody = document.getElementById('productsTableBody');
+            const tableHead = document.getElementById('productsTableHead');
+            const rawQuery = document.getElementById('globalSearchInput').value;
+            const searchQuery = rawQuery.toLowerCase().trim();
+            const searchBadge = document.getElementById('searchScopeBadge');
+            const titleEl = document.getElementById('currentCategoryTitle');
+            const subtitleEl = document.getElementById('currentCategorySubtitle');
+            tbody.innerHTML = '';
+
+            const isSearching = searchQuery.length > 0;
+            const showDeviceDetails = isSearching || currentCategory === 'new' || currentCategory === 'used';
+            const showBattery = isSearching || currentCategory === 'used';
+            const detailHeaders = showDeviceDetails
+                ? `${showBattery ? '<th>البطارية</th>' : ''}<th>المساحة</th><th>اللون</th>` : '';
+            tableHead.innerHTML = `<tr><th>اسم المنتج</th>${detailHeaders}<th>السعر</th><th>المدخل</th><th>تاريخ آخر تحديث</th><th>إجراءات</th></tr>`;
+            searchBadge.style.display = isSearching ? 'inline-block' : 'none';
+
+            if (isSearching) {
+                titleEl.textContent = `نتائج البحث: "${rawQuery.trim()}"`;
+                subtitleEl.textContent = 'بحث شامل في كل الأقسام';
+            } else {
+                titleEl.textContent = categoryLabels[currentCategory];
+                subtitleEl.textContent = 'اضغط على (+) لإضافة منتج جديد أو تعديل المنتجات الحالية';
+            }
+
+            let matchedCount = 0;
+            const entries = Object.entries(allProducts).sort((a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0));
+
+            entries.forEach(([key, item]) => {
+                if (!item) return;
+                const haystack = `${item.name || ''} ${item.color || ''} ${item.storage || ''}`.toLowerCase();
+                const nameMatch = haystack.includes(searchQuery);
+                const shouldShow = isSearching ? nameMatch : item.category === currentCategory;
+                if (!shouldShow) return;
+                matchedCount++;
+                const priceFormatted = Number(item.price || 0).toLocaleString('en-US') + ' EGP';
+                const catTag = isSearching ? `<span class="cat-pill">${escapeHTML(categoryLabels[item.category] || '')}</span>` : '';
+                let detailsCells = '';
+                if (showDeviceDetails) {
+                    if (showBattery) detailsCells += `<td class="num-en">${item.category === 'used' && item.battery !== '' && item.battery != null ? escapeHTML(item.battery) + '%' : '<span class="spec-tag">—</span>'}</td>`;
+                    detailsCells += `<td>${['new','used'].includes(item.category) && item.storage ? `<span class="spec-tag num-en">${escapeHTML(item.storage)}</span>` : '<span class="spec-tag">—</span>'}</td>`;
+                    detailsCells += `<td>${['new','used'].includes(item.category) && item.color ? `<span class="spec-tag">${escapeHTML(item.color)}</span>` : '<span class="spec-tag">—</span>'}</td>`;
+                }
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${escapeHTML(item.name || '---')} ${catTag}</td>${detailsCells}
+                    <td><span class="price-pill num-en">${priceFormatted}</span></td>
+                    <td>${escapeHTML(item.enteredBy || '—')}</td>
+                    <td><span class="date-badge num-en">${formatLastUpdated(item.updatedAt)}</span></td>
+                    <td><div class="action-btns">
+                        <button type="button" class="btn-action btn-edit" onclick="openProductModal('${key}')">✏️ تعديل</button>
+                        <button type="button" class="btn-action btn-delete" onclick="openDeleteModal('${key}')">🗑️ مسح</button>
+                    </div></td>`;
+                tbody.appendChild(tr);
+            });
+
+            if (matchedCount === 0) {
+                const columnCount = 4 + (showDeviceDetails ? (showBattery ? 3 : 2) : 0);
+                tbody.innerHTML = `<tr><td colspan="${columnCount}" style="text-align:center;color:var(--text-muted);padding:30px;">${isSearching ? 'لا توجد نتائج مطابقة لبحثك في أي قسم.' : 'لا توجد منتجات في هذا القسم بعد. اضغط على زر (+) للإضافة.'}</td></tr>`;
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function openProductModal(key = null) {
+            const modalTitle = document.getElementById('productModalTitle');
+            if (key && allProducts[key]) {
+                const item = allProducts[key];
+                modalTitle.textContent = '✏️ تعديل منتج';
+                document.getElementById('productKey').value = key;
+                document.getElementById('prodCategory').value = item.category || currentCategory;
+                document.getElementById('prodName').value = item.name || '';
+                document.getElementById('prodPrice').value = item.price || '';
+                document.getElementById('prodBattery').value = item.battery ?? '';
+                document.getElementById('prodStorage').value = item.storage || '';
+                document.getElementById('prodColor').value = item.color || '';
+            } else {
+                modalTitle.textContent = '➕ إضافة منتج';
+                document.getElementById('productKey').value = '';
+                document.getElementById('prodCategory').value = currentCategory;
+                document.getElementById('prodName').value = '';
+                document.getElementById('prodPrice').value = '';
+                document.getElementById('prodBattery').value = '';
+                document.getElementById('prodStorage').value = '';
+                document.getElementById('prodColor').value = '';
+            }
+            toggleUsedFields();
+            document.getElementById('productModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('prodName').focus(), 100);
+        }
+
+        function toggleUsedFields() {
+            const category = document.getElementById('prodCategory').value;
+            const isDevice = category === 'new' || category === 'used';
+            document.getElementById('deviceDetailsFields').style.display = isDevice ? 'flex' : 'none';
+            document.getElementById('batteryField').style.display = category === 'used' ? 'flex' : 'none';
+        }
+
+        function saveProduct() {
+            const key = document.getElementById('productKey').value;
+            const category = document.getElementById('prodCategory').value;
+            const name = document.getElementById('prodName').value.trim();
+            const price = document.getElementById('prodPrice').value.trim();
+            const battery = document.getElementById('prodBattery').value.trim();
+            const storage = document.getElementById('prodStorage').value;
+            const color = document.getElementById('prodColor').value.trim();
+            if (!name) { alert('يرجى إدخال اسم المنتج!'); return; }
+            if (category === 'used' && battery !== '' && (Number(battery) < 0 || Number(battery) > 100)) {
+                alert('نسبة البطارية يجب أن تكون بين 0 و100%.'); return;
+            }
+            const oldItem = key ? allProducts[key] : null;
+            const productData = {
+                category, name, price: price || 0,
+                enteredBy: oldItem?.enteredBy || currentUser?.username || 'غير معروف',
+                updatedAt: Date.now()
+            };
+            if (category === 'used') productData.battery = battery === '' ? '' : Number(battery);
+            if (category === 'used' || category === 'new') {
+                productData.storage = storage;
+                productData.color = color;
+            }
+            const ref = key ? database.ref('products/' + key) : database.ref('products').push();
+            ref.set(productData).then(() => {
+                closeModal('productModal');
+                showToast(key ? 'تم تحديث المنتج بنجاح ✓' : 'تمت إضافة المنتج بنجاح ✓');
+            }).catch(err => alert('حدث خطأ أثناء الحفظ: ' + err.message));
+        }
+
+        function openDeleteModal(key) {
+            document.getElementById('deleteKey').value = key;
+            document.getElementById('deleteErrorMsg').style.display = 'none';
+            document.getElementById('deleteModal').style.display = 'flex';
+        }
+
+        function confirmDeleteProduct() {
+            const key = document.getElementById('deleteKey').value;
+            if (sessionStorage.getItem('admin_authenticated') === 'true') {
+                database.ref('products/' + key).remove()
+                    .then(() => {
+                        closeModal('deleteModal');
+                        showToast('تم حذف المنتج ✓');
+                    })
+                    .catch(err => alert('حدث خطأ أثناء الحذف: ' + err.message));
+            } else {
+                document.getElementById('deleteErrorMsg').style.display = 'block';
+            }
+        }
+
+        function openChangePassModal() {
+            document.getElementById('currPassInput').value = '';
+            document.getElementById('newPassInput').value = '';
+            document.getElementById('changePassErrorMsg').style.display = 'none';
+            document.getElementById('changePassModal').style.display = 'flex';
+        }
+
+        async function confirmChangePassword() {
+            const currentPass = document.getElementById('currPassInput').value;
+            const newPass = document.getElementById('newPassInput').value.trim();
+            if (!newPass) { alert('يرجى إدخال كلمة مرور جديدة صحيحة!'); return; }
+            try {
+                const snap = await database.ref('adminUsers').once('value');
+                const users = snap.val() || {};
+                const entry = Object.entries(users).find(([, u]) => u.username === currentUser.username);
+                if (!entry || entry[1].passwordHash !== await hashPassword(currentPass)) {
+                    document.getElementById('changePassErrorMsg').style.display = 'block'; return;
+                }
+                await database.ref('adminUsers/' + entry[0] + '/passwordHash').set(await hashPassword(newPass));
+                closeModal('changePassModal'); showToast('تم تغيير كلمة المرور ✓');
+            } catch (err) { alert('تعذر تغيير كلمة المرور: ' + err.message); }
+        }
+
+        async function openUsersModal() {
+            document.getElementById('userEditor').style.display = 'none';
+            document.getElementById('usersModal').style.display = 'flex';
+            await renderUsersTable();
+        }
+
+        async function renderUsersTable() {
+            const tbody = document.getElementById('usersTableBody');
+            try {
+                const snap = await database.ref('adminUsers').once('value');
+                allUsers = snap.val() || {};
+                tbody.innerHTML = '';
+                Object.entries(allUsers).forEach(([key, user]) => {
+                    const tr = document.createElement('tr');
+                    const date = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : '—';
+                    tr.innerHTML = `<td>${escapeHTML(user.username)}</td><td>${date}</td><td><div class="action-btns"><button class="btn-action btn-edit" onclick="openUserEditor('${key}')">✏️ تعديل</button><button class="btn-action btn-delete" onclick="deleteUser('${key}')">🗑️ حذف</button></div></td>`;
+                    tbody.appendChild(tr);
+                });
+                if (!tbody.children.length) tbody.innerHTML = '<tr><td colspan="3">لا يوجد مستخدمون.</td></tr>';
+            } catch (err) { tbody.innerHTML = `<tr><td colspan="3">تعذر تحميل المستخدمين: ${escapeHTML(err.message)}</td></tr>`; }
+        }
+
+        function openUserEditor(key = null) {
+            editingUserKey = key;
+            document.getElementById('userEditKey').value = key || '';
+            document.getElementById('userEditorTitle').textContent = key ? 'تعديل المستخدم' : 'إضافة مستخدم جديد';
+            document.getElementById('newUsername').value = key ? (allUsers[key]?.username || '') : '';
+            document.getElementById('newUserPassword').value = '';
+            document.getElementById('newUserPassword').placeholder = key ? 'اتركه فارغًا للإبقاء على كلمة المرور' : 'كلمة مرور قوية';
+            document.getElementById('passwordHint').textContent = key ? '(اتركها فارغة دون تغيير)' : '(مطلوبة)';
+            document.getElementById('userErrorMsg').style.display = 'none';
+            document.getElementById('userEditor').style.display = 'flex';
+        }
+
+        function cancelUserEditor() { editingUserKey = null; document.getElementById('userEditor').style.display = 'none'; }
+
+        async function saveUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newUserPassword').value;
+            const error = document.getElementById('userErrorMsg');
+            error.style.display = 'none';
+            if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(username)) {
+                error.textContent = 'اسم المستخدم يجب أن يكون من 3 إلى 30 حرفًا إنجليزيًا أو رقمًا.'; error.style.display = 'block'; return;
+            }
+            if (!editingUserKey && password.length < 6) {
+                error.textContent = 'كلمة المرور يجب ألا تقل عن 6 أحرف.'; error.style.display = 'block'; return;
+            }
+            if (password && password.length < 6) {
+                error.textContent = 'كلمة المرور يجب ألا تقل عن 6 أحرف.'; error.style.display = 'block'; return;
+            }
+            const duplicate = Object.entries(allUsers).some(([key, u]) => key !== editingUserKey && (u.username || '').toLowerCase() === username.toLowerCase());
+            if (duplicate) { error.textContent = 'اسم المستخدم مستخدم بالفعل.'; error.style.display = 'block'; return; }
+            try {
+                const data = { username };
+                if (password) data.passwordHash = await hashPassword(password);
+                if (editingUserKey) await database.ref('adminUsers/' + editingUserKey).update(data);
+                else { data.createdAt = Date.now(); await database.ref('adminUsers').push(data); }
+                if (editingUserKey && currentUser?.username === allUsers[editingUserKey]?.username) {
+                    currentUser.username = username;
+                    sessionStorage.setItem('admin_username', username);
+                }
+                cancelUserEditor(); await renderUsersTable(); showToast('تم حفظ المستخدم ✓');
+            } catch (err) { error.textContent = 'تعذر الحفظ: ' + err.message; error.style.display = 'block'; }
+        }
+
+        async function deleteUser(key) {
+            const user = allUsers[key];
+            if (!user) return;
+            if (user.username === currentUser?.username) { alert('لا يمكنك حذف المستخدم الذي سجلت الدخول به.'); return; }
+            if (Object.keys(allUsers).length <= 1) { alert('يجب الاحتفاظ بمستخدم واحد على الأقل.'); return; }
+            if (!confirm(`هل تريد حذف المستخدم «${user.username}»؟`)) return;
+            try { await database.ref('adminUsers/' + key).remove(); await renderUsersTable(); showToast('تم حذف المستخدم ✓'); }
+            catch (err) { alert('تعذر حذف المستخدم: ' + err.message); }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                ['productModal', 'deleteModal', 'changePassModal', 'usersModal'].forEach(closeModal);
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', checkSession);
+    </script>
+</body>
+</html>
